@@ -99,6 +99,7 @@ Vor dem Entfernen der Druckertreiber zeigt das Script eine nummerierte Auswahl d
 ```
 
 Mit `A` werden alle angezeigten Treiber ausgewaehlt, mit `K` keine.
+Ausgewaehlte Treiber werden vor der Entfernung erneut gegen die aktuell vorhandenen Drucker geprueft. Wenn ein Treiber noch verwendet wird, zeigt das Script die blockierenden Drucker an und fragt gezielt nach, ob diese Drucker entfernt werden sollen. Dafuer muss exakt `DRUCKER ENTFERNEN` eingegeben werden. Ohne diese Bestaetigung wird der Treiber uebersprungen.
 
 ## Testlauf mit WhatIf
 
@@ -120,6 +121,7 @@ Mit `-Force` wird die interaktive Texteingabe uebersprungen:
 
 Dieser Modus sollte nur verwendet werden, wenn der Ablauf vorher mit `-WhatIf` geprueft wurde.
 Im `-Force`-Modus werden auch alle grundsaetzlich entfernbaren Druckertreiber ohne weitere Auswahl entfernt.
+Blockierende Drucker werden im `-Force`-Modus nicht automatisch mit entfernt.
 
 ## Ablauf im Detail
 
@@ -143,6 +145,7 @@ Im `-Force`-Modus werden auch alle grundsaetzlich entfernbaren Druckertreiber oh
 - Entfernte Drucker muessen bei Bedarf neu installiert oder erneut verbunden werden.
 - Das Script schuetzt Windows-/Office-Standarddrucker und bekannte PDF-Softwaredrucker anhand ihrer Namen.
 - Treiberpakete aus dem Driver Store werden nur entfernt, wenn sie eindeutig als Drittanbieter-`oem*.inf` erkannt werden.
+- Druckertreiber werden nicht entfernt, solange noch ein vorhandener Drucker diesen Treiber verwendet, ausser diese blockierenden Drucker wurden interaktiv zur Entfernung bestaetigt und erfolgreich entfernt.
 - Wenn ein Treiber noch durch Windows blockiert ist, wird der Fehler geloggt und das Script laeuft weiter.
 - Vor dem produktiven Einsatz sollte immer ein Testlauf mit `-WhatIf` durchgefuehrt werden.
 

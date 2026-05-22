@@ -321,6 +321,61 @@ function Remove-TargetDrivers {
         return
     }
 
+    $removableTargets = @(
+        foreach ($driver in $targets) {
+            $currentPrinters = @(Get-Printer | Sort-Object -Property Name)
+            $blockingPrinters = @($currentPrinters | Where-Object { $_.DriverName -eq $driver.Name })
+            if ($blockingPrinters.Count -gt 0) {
+                $blockingPrinterNames = ($blockingPrinters | Select-Object -ExpandProperty Name) -join ', '
+                Write-Log "Druckertreiber wird noch verwendet: $($driver.Name) ($blockingPrinterNames)" 'WARN'
+
+                if ($Force) {
+                    Write-Log "Blockierende Drucker werden im Force-Modus nicht automatisch entfernt: $($driver.Name)" 'WARN'
+                    continue
+                }
+
+                Write-Host ''
+                Write-Host "Der Druckertreiber '$($driver.Name)' wird noch von folgenden Druckern verwendet:"
+                $blockingPrinters | ForEach-Object { Write-Host "  - $($_.Name)" }
+                Write-Host ''
+
+                $confirmation = Read-Host "Diese Drucker entfernen, damit der Treiber geloescht werden kann? Zum Entfernen exakt 'DRUCKER ENTFERNEN' eingeben"
+                if ($confirmation -ne 'DRUCKER ENTFERNEN') {
+                    Write-Log "Blockierende Drucker wurden nicht zur Entfernung bestaetigt: $($driver.Name)" 'WARN'
+                    continue
+                }
+
+                foreach ($printer in $blockingPrinters) {
+                    try {
+                        if ($script:ShouldProcessContext.ShouldProcess($printer.Name, 'Blockierenden Drucker entfernen')) {
+                            Remove-Printer -Name $printer.Name -ErrorAction Stop
+                            Write-Log "Blockierender Drucker entfernt: $($printer.Name)" 'OK'
+                        }
+                    }
+                    catch {
+                        Write-Log "Blockierender Drucker konnte nicht entfernt werden: $($printer.Name) - $($_.Exception.Message)" 'ERROR'
+                    }
+                }
+
+                $currentPrinters = @(Get-Printer | Sort-Object -Property Name)
+                $blockingPrinters = @($currentPrinters | Where-Object { $_.DriverName -eq $driver.Name })
+                if ($blockingPrinters.Count -gt 0) {
+                    $blockingPrinterNames = ($blockingPrinters | Select-Object -ExpandProperty Name) -join ', '
+                    Write-Log "Druckertreiber wird uebersprungen, weil er weiterhin verwendet wird: $($driver.Name) ($blockingPrinterNames)" 'WARN'
+                    continue
+                }
+            }
+
+            $driver
+        }
+    )
+
+    $targets = @($removableTargets)
+    if ($targets.Count -eq 0) {
+        Write-Log 'Keine ausgewaehlten Druckertreiber sind aktuell unbenutzt.' 'WARN'
+        return
+    }
+
     $targetDriverNames = @($targets | Select-Object -ExpandProperty Name)
     $targetInfNames = @(
         $driverDetails |
