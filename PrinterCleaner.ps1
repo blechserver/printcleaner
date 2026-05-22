@@ -113,7 +113,32 @@ function Write-Log {
 
     $line = '{0} [{1}] {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message
     Write-Host $line
-    Add-Content -Path $script:LogFile -Value $line -Encoding UTF8
+    try {
+        $logDirectory = Split-Path -Path $script:LogFile -Parent
+        if (-not [string]::IsNullOrWhiteSpace($logDirectory)) {
+            New-Item -Path $logDirectory -ItemType Directory -Force | Out-Null
+        }
+
+        $encoding = [Text.UTF8Encoding]::new($false)
+        $stream = [IO.File]::Open($script:LogFile, [IO.FileMode]::Append, [IO.FileAccess]::Write, [IO.FileShare]::ReadWrite)
+        try {
+            $writer = [IO.StreamWriter]::new($stream, $encoding)
+            try {
+                $writer.WriteLine($line)
+            }
+            finally {
+                $writer.Dispose()
+            }
+        }
+        finally {
+            if ($null -ne $stream) {
+                $stream.Dispose()
+            }
+        }
+    }
+    catch {
+        Write-Warning "Logdatei konnte nicht geschrieben werden: $($_.Exception.Message)"
+    }
 }
 
 function Select-RemovalTargets {
