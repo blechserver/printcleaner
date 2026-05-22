@@ -31,6 +31,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $script:ShouldProcessContext = $PSCmdlet
+$script:TranscriptStarted = $false
 
 $protectedPrinterNamePatterns = @(
     '^Microsoft Print to PDF$',
@@ -235,7 +236,7 @@ function Remove-TargetDrivers {
             if ($script:ShouldProcessContext.ShouldProcess($infName, 'Treiberpaket aus Driver Store entfernen')) {
                 $pnputilOutput = & pnputil.exe /delete-driver $infName /uninstall /force 2>&1
                 foreach ($line in $pnputilOutput) {
-                    Write-Log "pnputil $infName: $line"
+                    Write-Log "pnputil ${infName}: $line"
                 }
 
                 if ($LASTEXITCODE -eq 0) {
@@ -294,7 +295,13 @@ $outputFolder = New-OutputFolder -Root $BackupRoot
 $script:LogFile = Join-Path -Path $outputFolder -ChildPath 'PrintCleaner.log'
 New-Item -Path $script:LogFile -ItemType File -Force | Out-Null
 
-Start-Transcript -Path (Join-Path $outputFolder 'transcript.log') -Append | Out-Null
+try {
+    Start-Transcript -Path (Join-Path $outputFolder 'transcript.log') -Append -ErrorAction Stop | Out-Null
+    $script:TranscriptStarted = $true
+}
+catch {
+    Write-Log "PowerShell-Transcript konnte nicht gestartet werden: $($_.Exception.Message)" 'WARN'
+}
 
 try {
     Write-Log 'PrintCleaner gestartet.'
@@ -355,5 +362,12 @@ try {
     Write-Host "Fertig. Logdatei: $script:LogFile"
 }
 finally {
-    Stop-Transcript | Out-Null
+    if ($script:TranscriptStarted) {
+        try {
+            Stop-Transcript -ErrorAction Stop | Out-Null
+        }
+        catch {
+            Write-Log "PowerShell-Transcript konnte nicht beendet werden: $($_.Exception.Message)" 'WARN'
+        }
+    }
 }
