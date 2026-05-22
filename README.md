@@ -150,3 +150,18 @@ Im `-Force`-Modus werden auch alle grundsaetzlich entfernbaren Druckertreiber oh
 
 - `PrinterCleaner.ps1` - Hauptscript
 - `README.md` - diese Anleitung
+
+## Hinweis verwaltete Umgebung "only RemoteSigned"
+
+In verwalteten Umgebung können Anpassungen notwendig sein für den Betrieb:
+
+```powershell
+Get-ExecutionPolicy -List
+```
+Wenn MachinePolicy = RemoteSigned hat das eine höhrere Priorität deshalb wird Bypass überschrieben.
+
+```powershell
+Unblock-File .\dein-script.ps1
+.\dein-script.ps1
+```
+Das sollte in den meisten Fällen reichen. 
