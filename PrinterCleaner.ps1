@@ -34,10 +34,12 @@ $script:ShouldProcessContext = $PSCmdlet
 $script:TranscriptStarted = $false
 
 $protectedPrinterNamePatterns = @(
-    '^Microsoft Print to PDF$',
+    '^Microsoft Print to PDF( \(umgeleitet \d+\))?$',
     '^Microsoft XPS Document Writer$',
     '^Fax$',
-    'OneNote'
+    'OneNote',
+    '^Adobe PDF$',
+    '^Power PDF( \(umgeleitet \d+\))?$'
 )
 
 $protectedDriverNamePatterns = @(
@@ -45,6 +47,10 @@ $protectedDriverNamePatterns = @(
     '^Microsoft XPS Document Writer',
     '^Fax$',
     'OneNote',
+    '^Adobe PDF$',
+    'Power PDF',
+    'Kofax PDF',
+    'Nuance PDF',
     '^Microsoft enhanced Point and Print',
     '^Remote Desktop Easy Print'
 )
@@ -108,6 +114,89 @@ function Write-Log {
     $line = '{0} [{1}] {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message
     Write-Host $line
     Add-Content -Path $script:LogFile -Value $line -Encoding UTF8
+}
+
+function Select-RemovalTargets {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object[]]$Items,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ItemLabel,
+
+        [string]$NameProperty = 'Name'
+    )
+
+    if ($Force) {
+        return @($Items)
+    }
+
+    Write-Host ''
+    Write-Host "Auswahl fuer $ItemLabel"
+    for ($index = 0; $index -lt $Items.Count; $index++) {
+        $number = $index + 1
+        $displayName = $Items[$index].PSObject.Properties[$NameProperty].Value
+        Write-Host ("  {0}. {1}" -f $number, $displayName)
+    }
+
+    while ($true) {
+        $selection = Read-Host "Zu entfernende $ItemLabel waehlen (z.B. 1,3-5; A=alle; K=keine)"
+        $selection = $selection.Trim()
+
+        if ($selection -ieq 'A') {
+            return @($Items)
+        }
+
+        if ($selection -ieq 'K') {
+            return @()
+        }
+
+        $selectedIndexes = @{}
+        $isValid = $true
+        foreach ($part in @($selection -split ',')) {
+            $part = $part.Trim()
+            if ([string]::IsNullOrWhiteSpace($part)) {
+                continue
+            }
+
+            if ($part -match '^\d+$') {
+                $itemIndex = [int]$part
+                if (($itemIndex -lt 1) -or ($itemIndex -gt $Items.Count)) {
+                    $isValid = $false
+                    break
+                }
+                $selectedIndexes[$itemIndex] = $true
+                continue
+            }
+
+            if ($part -match '^(\d+)-(\d+)$') {
+                $startIndex = [int]$Matches[1]
+                $endIndex = [int]$Matches[2]
+                if (($startIndex -lt 1) -or ($endIndex -gt $Items.Count) -or ($startIndex -gt $endIndex)) {
+                    $isValid = $false
+                    break
+                }
+
+                for ($itemIndex = $startIndex; $itemIndex -le $endIndex; $itemIndex++) {
+                    $selectedIndexes[$itemIndex] = $true
+                }
+                continue
+            }
+
+            $isValid = $false
+            break
+        }
+
+        if ($isValid -and ($selectedIndexes.Count -gt 0)) {
+            return @(
+                $selectedIndexes.Keys |
+                    Sort-Object { [int]$_ } |
+                    ForEach-Object { $Items[[int]$_ - 1] }
+            )
+        }
+
+        Write-Host 'Ungueltige Auswahl. Bitte Nummern, Bereiche, A oder K eingeben.'
+    }
 }
 
 function Export-Inventory {
@@ -193,6 +282,20 @@ function Remove-TargetDrivers {
             $isUsedByProtectedPrinter = $protectedPrinterDrivers -contains $_.Name
             -not ($isProtectedByName -or $isUsedByProtectedPrinter)
         })
+
+    if ($targets.Count -eq 0) {
+        Write-Log 'Keine zu entfernenden Druckertreiber gefunden.' 'OK'
+        return
+    }
+
+    Write-Log "$($targets.Count) Druckertreiber sind grundsaetzlich entfernbar."
+
+    $targets = @(Select-RemovalTargets -Items $targets -ItemLabel 'Druckertreiber')
+    if ($targets.Count -eq 0) {
+        Write-Log 'Keine Druckertreiber zur Entfernung ausgewaehlt.' 'WARN'
+        return
+    }
+
     $targetDriverNames = @($targets | Select-Object -ExpandProperty Name)
     $targetInfNames = @(
         $driverDetails |
@@ -205,12 +308,7 @@ function Remove-TargetDrivers {
             Select-Object -ExpandProperty InfName -Unique
     )
 
-    if ($targets.Count -eq 0) {
-        Write-Log 'Keine zu entfernenden Druckertreiber gefunden.' 'OK'
-        return
-    }
-
-    Write-Log "Entferne $($targets.Count) Druckertreiber."
+    Write-Log "Entferne $($targets.Count) ausgewaehlte Druckertreiber."
 
     foreach ($driver in $targets) {
         try {

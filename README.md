@@ -27,9 +27,12 @@ PrintCleaner entfernt standardmaessig:
 Folgende Windows-/Office-Standarddrucker werden geschuetzt und bleiben bestehen:
 
 - `Microsoft Print to PDF`
+- umgeleitete `Microsoft Print to PDF`-Drucker, zum Beispiel `Microsoft Print to PDF (umgeleitet 1)`
 - `Microsoft XPS Document Writer`
 - `Fax`
 - OneNote-Drucker
+- `Adobe PDF`
+- `Power PDF`, inklusive umgeleiteter Varianten
 
 Auch zugehoerige geschuetzte Treiber und Ports werden nicht entfernt.
 
@@ -89,6 +92,14 @@ ENTFERNEN
 
 Jede andere Eingabe bricht den Vorgang ab.
 
+Vor dem Entfernen der Druckertreiber zeigt das Script eine nummerierte Auswahl der grundsaetzlich entfernbaren Treiber an. Es koennen einzelne Nummern, Bereiche oder eine Kombination daraus eingegeben werden:
+
+```text
+1,3-5
+```
+
+Mit `A` werden alle angezeigten Treiber ausgewaehlt, mit `K` keine.
+
 ## Testlauf mit WhatIf
 
 Ein Testlauf ohne echte Aenderungen ist moeglich:
@@ -108,6 +119,7 @@ Mit `-Force` wird die interaktive Texteingabe uebersprungen:
 ```
 
 Dieser Modus sollte nur verwendet werden, wenn der Ablauf vorher mit `-WhatIf` geprueft wurde.
+Im `-Force`-Modus werden auch alle grundsaetzlich entfernbaren Druckertreiber ohne weitere Auswahl entfernt.
 
 ## Ablauf im Detail
 
@@ -118,17 +130,18 @@ Dieser Modus sollte nur verwendet werden, wenn der Ablauf vorher mit `-WhatIf` g
 5. interaktive Bestaetigung abfragen
 6. nicht geschuetzte Drucker entfernen
 7. Print Spooler stoppen und starten
-8. nicht geschuetzte Druckertreiber entfernen
-9. zugehoerige Drittanbieter-Treiberpakete aus dem Driver Store entfernen
-10. unbenutzte Drittanbieter-Ports entfernen
-11. Print Spooler erneut stoppen und starten
-12. Nachher-Inventar exportieren
+8. Auswahl der zu entfernenden Druckertreiber abfragen
+9. ausgewaehlte, nicht geschuetzte Druckertreiber entfernen
+10. zugehoerige Drittanbieter-Treiberpakete aus dem Driver Store entfernen
+11. unbenutzte Drittanbieter-Ports entfernen
+12. Print Spooler erneut stoppen und starten
+13. Nachher-Inventar exportieren
 
 ## Wichtige Hinweise
 
 - Das Script muss mit administrativen Rechten ausgefuehrt werden.
 - Entfernte Drucker muessen bei Bedarf neu installiert oder erneut verbunden werden.
-- Das Script schuetzt Windows-/Office-Standarddrucker anhand ihrer Namen.
+- Das Script schuetzt Windows-/Office-Standarddrucker und bekannte PDF-Softwaredrucker anhand ihrer Namen.
 - Treiberpakete aus dem Driver Store werden nur entfernt, wenn sie eindeutig als Drittanbieter-`oem*.inf` erkannt werden.
 - Wenn ein Treiber noch durch Windows blockiert ist, wird der Fehler geloggt und das Script laeuft weiter.
 - Vor dem produktiven Einsatz sollte immer ein Testlauf mit `-WhatIf` durchgefuehrt werden.
